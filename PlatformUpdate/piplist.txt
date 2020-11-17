@@ -1,0 +1,6 @@
+# Comment this file as appropriate
+# pip2 update lines should be in the format 2,<package>
+# pip3 update lines similarly in the format 3,<package>
+# Anything you want printed to screen should be in a line beginning !
+!Total of 0 packages to be updated...
+#EOF

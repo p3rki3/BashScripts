@@ -1,0 +1,5 @@
+# COMMENT BLOCK
+# file is just a simple list of GIT repo subdirectories in the user's home directory
+# lines beginning ! are echoed to the screen
+!0 GIT repos to update...
+

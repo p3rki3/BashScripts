@@ -1,0 +1,255 @@
+#!/bin/bash
+###################################### START OF COMMENT SECTION ##################################################################
+# (c) Simon Perkins MA FBP FCA April 2020
+# Author: Simon Perkins
+# Date Created: 6 April 2020
+# Date Modified: 11 April 2020
+# Description: Script to perform a menu driven platform update
+
+# Don't forget to modify the piplist.txt and gitlist.txt files for your machine
+# gitlist.txt is just a list of git subdirectories to update, 1 per line; you can add comments (#) and print(!) statements
+# piplist is a list of pip packages, 1 per line, in the format 2,packagename   or   3,packagename; # and ! work too as gitlist.txt
+
+######################################  END OF COMMENT SECTION  ##################################################################
+
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+GitFile=~/gitlist.txt
+PipFile=~/piplist.txt
+declare -i select_option
+declare -i UpdateGit=0
+declare -i UpdatePip=0
+declare -i FatRat=0
+declare -i SnapInstalled=0
+declare -i ErrorCount=0
+######################################
+
+function check_errors {
+   if [ $ErrorCount -ne 0 ] ; then
+      echo -e "${RED}There were $ErrorCount Errors found while updating${NC}"
+   else
+      echo -e "${GREEN}Update completed with no errors${NC}"
+   fi
+}
+
+function git_update {
+   ErrorCount=0
+   clear
+   echo -e "${GREEN}Updating local clones of git repos${NC}"
+   while read -r repo
+   do
+      if [ ${repo:0:1} = "!" ] ; then
+         echo -e "${GREEN}${repo:1}${NC}"
+      elif [ ${repo:0:1} = "#" ] ; then
+         : # ignore and do nothing - just a comment line in the file
+      else
+         echo "Updating $repo"
+         cd $repo
+         git pull
+         if [ $? -ne 0 ] ; then
+            ((ErrorCount++))
+         fi
+         cd ..
+         sleep 1
+      fi
+
+   done < $GitFile
+   cd ~
+   check_errors
+   echo -e "${GREEN}Done.${NC}"
+   read -p "Press any key to continue..."
+}
+
+function pip_update {
+   ErrorCount=0
+   clear
+   echo -e "${GREEN}Updating install python2 and python3 packages${NC}"
+   while read -r package
+   do
+      if [ ${package:0:1} = "2" ] ; then
+         echo -e "${GREEN}Upgrading " ${package:2} "using pip${NC}"
+         pip install --upgrade ${package:2}
+         if [ $? -ne 0 ] ; then
+            ((ErrorCount++))
+         fi
+      fi
+      if [ ${package:0:1} = "3" ] ; then
+         echo -e "${GREEN}Upgrading " ${package:2} "using pip3${NC}"
+         pip3 install --upgrade ${package:2}
+         if [ $? -ne 0 ] ; then
+            ((ErrorCount++))
+         fi
+      fi
+      if [ ${package:0:1} = "!" ] ; then
+         echo -e "${GREEN}${package:1}${NC}"
+      fi
+   done < $PipFile
+   check_errors
+   read -p "Press any key to continue..."
+}
+
+function fatrat_update {
+   ErrorCount=0
+   if [ $FatRat -eq 1 ] ; then
+      cd ~/TheFatRat
+      ./update
+      if [ $? -ne 0 ] ; then
+         ((ErrorCount++))
+      fi
+      cd ~
+      echo -e "${GREEN}Done.${NC}"
+   else
+      echo -e "${RED}TheFatRat is not installed - nothing to update${NC}"
+   fi
+   check_errors
+   read -p "Press any key to continue..."
+}
+
+function print_menu {
+   clear
+   echo -e "${GREEN}Linux Platform Update Script (c) Simon Perkins MA FBP FCA April 2020"
+   echo -e "===================================================================="
+   echo
+   echo -e "Select one of the following options....${NC}"
+   echo
+   echo -e "${YELLOW}		1. Update linux system and all installed packages (apt full-upgrade)"
+   if [ $UpdateGit -eq 1 ] ; then
+      echo -e "		2. Update installed GIT repositories (git pull)"
+   else
+      echo -e "		2. ${RED}Set up a gitlist.txt file to update git repos${YELLOW}"
+   fi
+   if [ $UpdatePip -eq 1 ] ; then
+      echo -e "		3. Python PIP updates (pip update)"
+   else
+      echo -e "		3. ${RED}Set up a piplist.txt file to update python packages${YELLOW}"
+   fi
+   if [ $SnapInstalled -eq 1 ] ; then
+      echo -e "		4. Update snaps (snap refresh)"
+   else
+      echo -e "		4. ${RED}Snap is not installed${YELLOW}"
+   fi
+   if [ $FatRat -eq 1 ] ; then
+      echo -e "		5. Update TheFatRat"
+   else
+      echo -e "		5. ${RED}TheFatRat is not installed for this user${YELLOW}"
+   fi
+   echo -e "		6. Cleanup and exit"
+   echo -e "		7. Cleanup and shutdown"
+   echo -e "		9. Quick exit${NC}"
+   echo
+}
+
+function bad_input {
+   echo -e "${RED}Sorry - I didn't understand your input - please try again${NC}"
+   read -p "Press any key to continue..."
+}
+
+function apt_full_upgrade {
+   ErrorCount=0
+   echo
+   echo -e "${GREEN}Updating system and installed packages${NC}"
+   sudo apt update
+      if [ $? -ne 0 ] ; then
+         ((ErrorCount++))
+      fi
+   sudo apt -y full-upgrade
+      if [ $? -ne 0 ] ; then
+         ((ErrorCount++))
+      fi
+   check_errors
+   read -p "Press any key to continue..."
+}
+
+function apt_clean_autoremove {
+   ErrorCount=0
+   echo
+   echo -e "${GREEN}Cleaning up...${NC}"
+   sudo apt -y autoremove
+   if [ $? -ne 0 ] ; then
+      ((ErrorCount++))
+   fi
+   sudo apt clean
+   if [ $? -ne 0 ] ; then
+      ((ErrorCount++))
+   fi
+   check_errors
+   echo -e "${GREEN}All done ... bye${NC}"
+   if [ $1 -eq 0 ] ; then
+      exit
+   else
+      sudo shutdown now
+   fi
+}
+
+function snap_update {
+   ErrorCount=0
+   clear
+   if [ $SnapInstalled -eq 1 ] ; then
+      sudo snap refresh
+      if [ $? -ne 0 ] ; then
+         ((ErrorCount++))
+      fi
+   else
+      echo -e "${RED}Snap is not installed - nothing to do${NC}"
+   fi
+   check_errors
+   read -p "Press any key to continue..."
+}
+
+################################  MAIN CODE STARTS
+
+# See what update options we should display
+   if [ -f "$PipFile" ] ; then
+      UpdatePip=1
+   fi
+   if [ -f "$GitFile" ] ; then
+      UpdateGit=1
+   fi
+   if [ -f ./TheFatRat/fatrat ] ; then
+      FatRat=1
+   fi
+   snap > /dev/null
+   if [ $? -eq 0 ] ; then
+      SnapInstalled=1
+   fi
+# Main program loop
+
+while [ 1 ]
+do
+   print_menu
+   echo -n -e "${GREEN}Input option (1-7 or 9)${YELLOW}:"
+   read -p " " select_option
+   echo -e "${NC}"
+   case $select_option in
+      1)
+         apt_full_upgrade
+         ;;
+      2)
+         git_update
+         ;;
+      3)
+         pip_update
+         ;;
+      4)
+         snap_update
+         ;;
+      5)
+         fatrat_update
+         ;;
+      6)
+         apt_clean_autoremove 0
+         ;;
+      7)
+         apt_clean_autoremove 1
+         ;;
+      9)
+         echo -e "${RED}Bye...${NC}"
+         exit
+         ;;
+      *)
+         bad_input
+         ;;
+   esac
+done
