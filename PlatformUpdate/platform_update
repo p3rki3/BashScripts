@@ -46,12 +46,11 @@ function git_update {
          : # ignore and do nothing - just a comment line in the file
       else
          echo "Updating $repo"
-         cd $repo
+         cd ~/$repo
          git pull
          if [ $? -ne 0 ] ; then
             ((ErrorCount++))
          fi
-         cd ..
          sleep 1
       fi
 
